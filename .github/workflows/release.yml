@@ -1,0 +1,96 @@
+name: Build and Release
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build-and-release:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+        
+    - name: Get dependencies
+      run: go mod download
+      
+    - name: Run tests
+      run: go test -v ./...
+      
+    - name: Generate release tag
+      id: tag
+      run: |
+        BASE_TAG=$(date +'%Y.%m.%d')
+        COMMIT_SHORT=$(git rev-parse --short HEAD)
+        TAG="${BASE_TAG}-${COMMIT_SHORT}"
+        
+        echo "tag=${TAG}" >> $GITHUB_OUTPUT
+        echo "base_tag=${BASE_TAG}" >> $GITHUB_OUTPUT
+        echo "commit=${COMMIT_SHORT}" >> $GITHUB_OUTPUT
+        echo "Using tag: $TAG"
+        
+    - name: Build Linux AMD64
+      run: |
+        CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -a -ldflags '-extldflags "-static"' -o prometheus-slurm-exporter-linux-amd64
+        
+    - name: Create checksums
+      run: |
+        sha256sum prometheus-slurm-exporter-linux-amd64 > checksums.txt
+        
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.tag.outputs.tag }}
+        release_name: Release ${{ steps.tag.outputs.tag }}
+        body: |
+          ## Prometheus SLURM Exporter - ${{ steps.tag.outputs.tag }}
+          
+          Automated release built on ${{ steps.tag.outputs.base_tag }}
+          Commit: ${{ steps.tag.outputs.commit }}
+          
+          ### Changes
+          This release includes the latest changes from the main branch.
+          
+          ### Downloads
+          - `prometheus-slurm-exporter-linux-amd64`: Linux x86_64 binary
+          - `checksums.txt`: SHA256 checksums for verification
+          
+          ### Installation
+          1. Download the binary: `wget https://github.com/${{ github.repository }}/releases/download/${{ steps.tag.outputs.tag }}/prometheus-slurm-exporter-linux-amd64`
+          2. Make it executable: `chmod +x prometheus-slurm-exporter-linux-amd64`
+          3. Run: `./prometheus-slurm-exporter-linux-amd64`
+          
+          ### Compatibility
+          This is a statically linked Go binary that should work on most Linux distributions including Ubuntu, CentOS, RHEL, Debian, etc.
+        draft: false
+        prerelease: false
+        
+    - name: Upload Linux AMD64 Binary
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./prometheus-slurm-exporter-linux-amd64
+        asset_name: prometheus-slurm-exporter-linux-amd64
+        asset_content_type: application/octet-stream
+        
+    - name: Upload Checksums
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }}
+        asset_path: ./checksums.txt
+        asset_name: checksums.txt
+        asset_content_type: text/plain
