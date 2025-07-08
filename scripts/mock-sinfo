@@ -1,0 +1,117 @@
+#!/bin/bash
+# Mock SLURM sinfo command for testing
+# This script mimics the behavior of the real sinfo command for CI/testing purposes
+
+case "$*" in
+  *"--json"* | *"-j"*)
+    # JSON output for modern SLURM versions
+    if [[ "$*" == *"--state=allocated"* ]]; then
+      # GPU allocation data
+      cat << 'EOF'
+{
+  "sinfo": [
+    {
+      "gres": {
+        "total": "gpu:A100:8",
+        "used": "gpu:A100:4"
+      },
+      "name": "gpu-node001",
+      "state": ["MIXED"]
+    },
+    {
+      "gres": {
+        "total": "gpu:RTX2080:4",
+        "used": "gpu:RTX2080:2"
+      },
+      "name": "gpu-node002", 
+      "state": ["MIXED"]
+    }
+  ]
+}
+EOF
+    else
+      # General node info
+      cat << 'EOF'
+{
+  "sinfo": [
+    {
+      "gres": {
+        "total": "gpu:A100:8",
+        "used": "gpu:A100:4"
+      },
+      "memory": {
+        "allocated": 102400,
+        "minimum": 515000,
+        "maximum": 515000
+      },
+      "cpus": {
+        "allocated": 32,
+        "idle": 64,
+        "other": 0,
+        "total": 96
+      },
+      "name": "node001",
+      "state": ["MIXED"]
+    },
+    {
+      "gres": {
+        "total": "gpu:RTX2080:4", 
+        "used": "gpu:RTX2080:0"
+      },
+      "memory": {
+        "allocated": 0,
+        "minimum": 257000,
+        "maximum": 257000
+      },
+      "cpus": {
+        "allocated": 0,
+        "idle": 48,
+        "other": 0,
+        "total": 48
+      },
+      "name": "node002",
+      "state": ["IDLE"]
+    }
+  ]
+}
+EOF
+    fi
+    ;;
+  *"-h -o %C"*)
+    # CPU summary: ALLOCATED/IDLE/OTHER/TOTAL
+    echo "1234/5678/90/7012"
+    ;;
+  *"-h -N -O"*)
+    # Per-node detailed output
+    cat << 'EOF'
+node001              1024                204800              16/80/0/96          mixed               
+node002              512                 102400              8/40/0/48           idle                
+node003              2048                512000              32/64/0/96          allocated           
+EOF
+    ;;
+  *"-h -o"* | *"-o"*)
+    # Custom format output
+    if [[ "$*" == *'"%n %G"'* ]]; then
+      # Node names and GRES
+      cat << 'EOF'
+"node001 gpu:4"
+"node002 gpu:2" 
+"node003 gpu:8"
+EOF
+    else
+      # Default partition info
+      cat << 'EOF'
+compute,1234/5678/90/7012
+gpu,256/512/32/800
+EOF
+    fi
+    ;;
+  *)
+    # Default tabular output
+    cat << 'EOF'
+PARTITION AVAIL  TIMELIMIT  NODES  STATE NODELIST
+compute*     up   infinite      2  mixed node[001-002]
+gpu          up   infinite      1   idle node003
+EOF
+    ;;
+esac

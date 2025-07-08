@@ -1,0 +1,36 @@
+#!/bin/bash
+# Mock SLURM sdiag command for testing  
+# This script mimics the behavior of the real sdiag command for CI/testing purposes
+
+cat << 'EOF'
+*******************************************************
+sdiag - slurm diagnostic statistics tool
+Data since      2025-07-08T00:00:00
+*******************************************************
+Server thread count: 3
+Agent queue size: 0
+DBD Agent queue size: 0
+
+Jobs submitted: 1000
+Jobs started: 950
+Jobs completed: 920
+Jobs canceled: 30
+Jobs failed: 5
+
+Main schedule statistics (microseconds):
+	Last cycle:   97209
+	Max cycle:    150000
+	Total cycles: 86400
+	Mean cycle:   74593
+	Mean depth:   25
+	Cycles per minute: 63
+	Last queue length: 0
+
+Backfilling stats:
+	Total backfilled jobs (since last slurm start): 111544
+	Total backfilled jobs (since last stats cycle start): 793
+	Total backfilled heterogeneous job components: 10
+	Mean cycle: 1960820
+	Last cycle: 1942890
+	Depth mean: 29324
+EOF

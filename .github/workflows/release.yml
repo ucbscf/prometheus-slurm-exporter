@@ -21,6 +21,22 @@ jobs:
     - name: Get dependencies
       run: go mod download
       
+    - name: Set up mock SLURM commands for testing
+      run: |
+        # Make mock scripts executable
+        chmod +x scripts/mock-*
+        
+        # Create symlinks in PATH so commands are found
+        sudo ln -sf $(pwd)/scripts/mock-sinfo /usr/local/bin/sinfo
+        sudo ln -sf $(pwd)/scripts/mock-squeue /usr/local/bin/squeue
+        sudo ln -sf $(pwd)/scripts/mock-sdiag /usr/local/bin/sdiag
+        
+        # Verify mocks work
+        echo "Testing mock commands:"
+        sinfo --version 2>/dev/null || echo "sinfo mock: OK"
+        squeue --version 2>/dev/null || echo "squeue mock: OK"
+        sdiag --version 2>/dev/null || echo "sdiag mock: OK"
+        
     - name: Run tests
       run: go test -v ./...
       

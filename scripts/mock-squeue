@@ -1,0 +1,53 @@
+#!/bin/bash
+# Mock SLURM squeue command for testing
+# This script mimics the behavior of the real squeue command for CI/testing purposes
+
+case "$*" in
+  *"-a -r -h -o %A|%u|%T|%C|%N"*)
+    # User job data
+    cat << 'EOF'
+123456|alice|RUNNING|16|node001
+123457|bob|RUNNING|8|node002
+123458|charlie|PENDING|32|
+123459|diana|COMPLETING|4|node001
+EOF
+    ;;
+  *"-a -r -h -o %A|%a|%T|%C"*)
+    # Account job data  
+    cat << 'EOF'
+123456|proj001|RUNNING|16
+123457|proj002|RUNNING|8
+123458|proj001|PENDING|32
+123459|proj003|COMPLETING|4
+EOF
+    ;;
+  *"-a -r -h -o%P"* | *"--states=PENDING"*)
+    # Pending jobs by partition
+    cat << 'EOF'
+compute
+compute
+gpu
+EOF
+    ;;
+  *"-a -r -h -o %A,%T,%r"* | *"--states=all"*)
+    # All job states with reasons
+    cat << 'EOF'
+123456,RUNNING,None
+123457,RUNNING,None  
+123458,PENDING,Resources
+123459,COMPLETING,None
+123460,CANCELLED,None
+123461,FAILED,NodeFail
+123462,TIMEOUT,TimeLimit
+EOF
+    ;;
+  *)
+    # Default tabular output
+    cat << 'EOF'
+             JOBID PARTITION     NAME     USER ST       TIME  NODES NODELIST(REASON)
+            123456   compute test_job    alice  R       1:23      1 node001
+            123457   compute sim_work      bob  R      15:42      1 node002  
+            123458       gpu  ml_train  charlie PD       0:00      2 (Resources)
+EOF
+    ;;
+esac
